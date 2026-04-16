@@ -1,0 +1,100 @@
+import math as m
+import random
+from typing import Dict, Tuple
+
+
+class Pond:
+
+    cluster = None
+
+    @classmethod
+    def new_from_area(cls, area: int, lilypad_class, test_points_per_cell: int = 0):
+        side_l = area**0.5
+        cls(side_l, lilypad_class, test_points_per_cell)
+
+
+    def __init__(self, side: float, lilypad_class, test_points_per_cell: int = 0):
+        self.side_length = side
+        self.grid: Dict[int, Dict[int, list]] = {}
+        self.lilypad_class = lilypad_class
+        self.last_lilypad = None
+
+
+    def add_lilypad(self):
+        lilypad = self.lilypad_class(*self.generate_random_coords())
+        x, y = lilypad.get_coords()
+
+        # check if the lilypad is touching any other lilypads in the same cell or adjacent cells
+        clusters_touched = set()
+        for other in self.get_cell_with_adjacent(x, y):
+            if other.cluster in clusters_touched:
+                print("Dubble from same cluster")
+                continue
+            if lilypad.is_touching(other):
+                print("Touching")
+                clusters_touched.add(other.cluster)
+            else:
+                print("Not touching")
+        if len(clusters_touched) == 0:
+            # if the lilypad isn't touching any other lilypads, create a new cluster for it
+            lilypad.cluster = self.cluster()
+            lilypad.cluster.add_lilypad(lilypad)
+        elif len(clusters_touched) == 1:
+            # if the lilypad is only touching one cluster, add it to that cluster
+            cluster = clusters_touched.pop()
+            cluster.add_lilypad(lilypad)
+            lilypad.cluster = cluster
+        else:
+            # if the lilypad is touching multiple clusters, merge those clusters and add the lilypad to the merged cluster
+            merged_cluster = self.cluster.merge_clusters(*clusters_touched)
+            merged_cluster.add_lilypad(lilypad)
+            lilypad.cluster = merged_cluster
+
+        lilypad.smart_edge_check(self.side_length)
+
+        self.add_to_cell(lilypad)
+        self.last_lilypad = lilypad
+
+
+    def add_to_cell(self, lilypad: object):
+        x, y = lilypad.get_coords()
+        t_x, t_y = m.floor(x), m.floor(y)
+        self._add_to_cell(lilypad, t_x, t_y)
+
+    def _add_to_cell(self, lilypad: object, x, y):
+        if x not in self.grid:
+            self.grid[x] = {}
+        if y not in self.grid[x]:
+            self.grid[x][y] = []
+        self.grid[x][y].append(lilypad)
+
+    def _get_cell(self, x:int, y:int) -> list:
+        return self.grid.get(x, {}).get(y, [])
+
+    def _get_cell_w_adjacent(self, t_x:int, t_y:int) -> list:
+        out = []
+        for x in range(t_x-2, t_x+3):
+            # NOTE: We don't care about out of bounds here because _get_cell will just return an empty list
+            for y in range(t_y-2, t_y+3):
+                out += self._get_cell(x, y)
+        return out
+
+    def get_cell_from_coords(self, x:float, y:float) -> list:
+        if not 0<x<self.side_length or not 0<y<self.side_length:
+            raise ValueError("Coords out of bounds")
+        cell_x, cell_y = m.floor(x), m.floor(y)
+        return self._get_cell(cell_x, cell_y)
+
+    def get_cell_with_adjacent(self, x:float, y:float) -> list:
+        if not 0<x<self.side_length or not 0<y<self.side_length:
+            raise ValueError("Coords out of bounds")
+        cell_x, cell_y = m.floor(x), m.floor(y)
+        return self._get_cell_w_adjacent(cell_x, cell_y)
+
+    def generate_random_coords(self) -> Tuple[float, float]:
+        return random.uniform(0, self.side_length), random.uniform(0, self.side_length)
+
+    def did_last_lilypad_connect_edges(self) -> bool:
+        if self.last_lilypad is None:
+            return False
+        return self.last_lilypad.cluster.left_connected and self.last_lilypad.cluster.right_connected

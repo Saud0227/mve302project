@@ -1,4 +1,5 @@
 import math as m
+import numpy as np
 from typing import Tuple
 
 
@@ -59,8 +60,29 @@ class TriangleLilypad(Lilypad):
     def __init__(self, x: int, y: int):
         super().__init__(x, y)
         self.area = m.pi
+        self.height = (m.pi*3**0.5)**0.5
+        self.side = (m.pi*4/(3**0.5))**0.5
+        self.axes = ((0,1),(3**0.5/2,0.5),(-3**0.5/2,0.5))
+        self.p = [(self.x, self.y+2/3*self.height),(self.x-self.side/2, self.y-1/3*self.height),(self.x+self.side/2, self.y-1/3*self.height)]
 
+    def is_touching(self, other):
+        dist_sq = (self.x-other.x)**2 + (self.y-other.y)**2
+        if dist_sq > (2 * 2/3*self.height)**2: 
+            return False
+        for axis in self.axes:
+            proj1 = np.dot(self.p, axis)
+            proj2 = np.dot(other.p, axis)
 
+            min1, max1 = np.min(proj1), np.max(proj1)
+            min2, max2 = np.min(proj2), np.max(proj2)
+
+            if max1 < min2 or max2 < min1:
+                return False
+        return True
+        
+    def _check_edge_connections(self, edge_x: float) -> None:
+        self.left_connected = self.p[1][1] <= 0
+        self.right_connected = self.p[2][1] >= edge_x
 class Cluster:
 
     @classmethod
@@ -105,3 +127,8 @@ if __name__ == "__main__":
     print((l1x-l2x)**2 + (l1y-l2y)**2)
 
     print(l1.is_touching(l2))
+
+t1 = TriangleLilypad(0.51212, 3.342)
+t2 = TriangleLilypad(0.80002, 5.6702)
+print(t1.is_touching(t2))
+print(t1._check_edge_connections(5.02))

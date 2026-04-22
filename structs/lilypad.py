@@ -21,19 +21,31 @@ class Lilypad:
     def get_coords(self) -> Tuple[float, float]:
         return self.x, self.y
 
+    # def smart_edge_check(self, edge_x: float) -> None:
+    #     # only check edge connections if cluster isn't already connected to that edge
+    #     if self.cluster is None:
+    #         raise ValueError("Lilypad must be part of a cluster to check edge connections")
+    #     l_checked = False
+    #     if not self.cluster.left_connected:
+    #         self._check_edge_connections(edge_x)
+    #         self.cluster.left_connected = self.left_connected
+    #         l_checked = True
+    #     if not self.cluster.right_connected:
+    #         if not l_checked:
+    #             self._check_edge_connections(edge_x)
+    #         self.cluster.right_connected = self.right_connected
     def smart_edge_check(self, edge_x: float) -> None:
-        # only check edge connections if cluster isn't already connected to that edge
         if self.cluster is None:
-            raise ValueError("Lilypad must be part of a cluster to check edge connections")
-        l_checked = False
-        if not self.cluster.left_connected:
+            return
+    
+        top = self.cluster.get_top()
+        # Kolla bara om vi inte redan vet att klustret nuddar kanten
+        if not top.left_connected or not top.right_connected:
             self._check_edge_connections(edge_x)
-            self.cluster.left_connected = self.left_connected
-            l_checked = True
-        if not self.cluster.right_connected:
-            if not l_checked:
-                self._check_edge_connections(edge_x)
-            self.cluster.right_connected = self.right_connected
+            if self.left_connected:
+                top.left_connected = True
+            if self.right_connected:
+                top.right_connected = True
 
 
 class CircleLilypad(Lilypad):
@@ -81,25 +93,54 @@ class TriangleLilypad(Lilypad):
         return True
         
     def _check_edge_connections(self, edge_x: float) -> None:
-        self.left_connected = self.p[1][1] <= 0
-        self.right_connected = self.p[2][1] >= edge_x
+        self.left_connected = self.p[1][0] <= 0
+        self.right_connected = self.p[2][0] >= edge_x
 class Cluster:
 
     @classmethod
-    def merge_clusters(cls, *clusters) -> Cluster:
+    def merge_clusters(cls, *clusters) -> "Cluster":
         merged_cluster = cls()
-        left_connected = False
-        right_connected = False
+    
+        # Initiera status som False
+        left = False
+        right = False
+    
         for cluster in clusters:
-            left_connected = left_connected or cluster.left_connected
-            right_connected = right_connected or cluster.right_connected
+            # Samla status från alla delar
+            left = left or cluster.left_connected
+            right = right or cluster.right_connected
+        
+            # Flytta över bladen och uppdatera deras referens
+            merged_cluster.lilypads.extend(cluster.lilypads)
+            for lp in cluster.lilypads:
+                lp.cluster = merged_cluster
+            
             cluster.parent_cluster = merged_cluster
-
-        merged_cluster.child_clusters = clusters
-        merged_cluster.left_connected = left_connected
-        merged_cluster.right_connected = right_connected
-
+    
+        # Spara den samlade statusen i det nya super-klustret
+        merged_cluster.left_connected = left
+        merged_cluster.right_connected = right
+        merged_cluster.child_clusters = list(clusters)
         return merged_cluster
+    # def merge_clusters(cls, *clusters) -> "Cluster":
+    #     merged_cluster = cls()
+    #     left_connected = False
+    #     right_connected = False
+    #     for cluster in clusters:
+    #         left_connected = left_connected or cluster.left_connected
+    #         right_connected = right_connected or cluster.right_connected
+    #         cluster.parent_cluster = merged_cluster
+    #         merged_cluster.lilypads.extend(cluster.lilypads) 
+    #         for lp in cluster.lilypads:
+    #             lp.cluster = merged_cluster # Uppdatera referensen på bladet
+            
+    #         cluster.parent_cluster = merged_cluster
+    #         merged_cluster.left_connected = left_connected
+    #         merged_cluster.right_connected = right_connected
+    #         merged_cluster.child_clusters = clusters
+    #     return merged_cluster
+
+        
 
     def __init__(self):
         self.lilypads = []
@@ -108,7 +149,7 @@ class Cluster:
         self.left_connected = False
         self.right_connected = False
 
-    def get_top(self) -> Cluster:
+    def get_top(self) -> "Cluster":
         if self.parent_cluster is not None:
             return self.parent_cluster.get_top()
         return self

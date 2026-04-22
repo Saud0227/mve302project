@@ -96,5 +96,11 @@ class Pond:
 
     def did_last_lilypad_connect_edges(self) -> bool:
         if self.last_lilypad is None:
-            return False
-        return self.last_lilypad.cluster.left_connected and self.last_lilypad.cluster.right_connected
+          return False
+        # Kontrollera det översta klustret för att få den samlade statusen
+        top_cluster = self.last_lilypad.cluster.get_top()
+        return top_cluster.left_connected and top_cluster.right_connected
+    # def did_last_lilypad_connect_edges(self) -> bool:
+    #     if self.last_lilypad is None:
+    #         return False
+    #     return self.last_lilypad.cluster.left_connected and self.last_lilypad.cluster.right_connected

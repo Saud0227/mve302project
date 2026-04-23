@@ -25,13 +25,13 @@ def step_run(pond, length=0):
     return None
 
 
-def run_multiple(data_set, size, multi_count=10, pad_class=CircleLilypad, timemout=1000000):
+def run_multiple(data_set, size, multi_count=10, lilypad_class=CircleLilypad, timemout=1000000):
     for pond_size in data_set:
         print("Running pond size: ", pond_size)
         sum = 0
 
         with (ThreadPoolExecutor(max_workers=multi_count) as pool):
-            futures = {pool.submit(Pond.quick_run, pond_size, pad_class, timemout): i for i in range(size)}
+            futures = {pool.submit(Pond.quick_run, pond_size, lilypad_class, timemout): i for i in range(size)}
 
             for future in as_completed(futures):
                 f, c = future.result()
@@ -42,9 +42,9 @@ def run_multiple(data_set, size, multi_count=10, pad_class=CircleLilypad, timemo
         data_set[pond_size]["average"] = sum/size
 
 
-def run_approximation(start, step, base_steps, predict_steps, size, lillypad_class=CircleLilypad):
+def run_approximation(start, step, base_steps, predict_steps, size, multi_count=10, lilypad_class=CircleLilypad):
     base_set = {i:{"data":[]} for i in range(start, start+base_steps*step, step)}
-    run_multiple(base_set, size)
+    run_multiple(base_set, size, multi_count, lilypad_class)
     print("Base set generated, now predicting values for larger ponds...")
 
     x = list(base_set.keys())
@@ -59,7 +59,7 @@ def run_approximation(start, step, base_steps, predict_steps, size, lillypad_cla
 
     guess_set = {i:{"linear": int(coeffs[0]*i + coeffs[1]),"quadratic": int(coeffs2[0]*i**2 + coeffs2[1]*i + coeffs2[2]), "data":[]} for i in range(start+base_steps*step, start+base_steps*step+predict_steps*step, step)}
 
-    run_multiple(guess_set, size)
+    run_multiple(guess_set, size, multi_count, lilypad_class)
 
     print("Guess set generated, now comparing predictions to actual values...")
     for pond_size, data_item in guess_set.items():
@@ -67,61 +67,13 @@ def run_approximation(start, step, base_steps, predict_steps, size, lillypad_cla
         quadratic_error = abs(data_item["quadratic"] - data_item["average"])
         print(f"Pond size: {pond_size}, actual average: {data_item['average']}, linear prediction: {data_item['linear']} (error: {linear_error}), quadratic prediction: {data_item['quadratic']} (error: {quadratic_error})")
 
-def run_coverage_with_gui(pond, delay_time=10):
-    root = tk.Tk()
-    root.title("Pond Coverage Simulation")
-
-    canvas = tk.Canvas(root, width=500, height=500, bg="white")
-    unit = 500 / pond.side_length
-    canvas.pack()
-
-    c = 0
-    # Loop until the NumPy grid says 100% of points are covered
-    while not pond.is_complete():
-        pond.add_lilypad()
-        c += 1
-
-        # We can optimize this by only drawing the NEW lilypad instead of redrawing all of them
-        lilypad = pond.last_lilypad
-        x, y = lilypad.get_coords()
-
-        # Draw the single new shape
-        if isinstance(lilypad, CircleLilypad):
-            canvas.create_oval(unit*(x-1), unit*(y-1), unit*(x+1), unit*(y+1), fill="green", outline="darkgreen")
-        elif isinstance(lilypad, TriangleLilypad):
-            scaled_points = []
-            for px, py in lilypad.p:
-                scaled_points.extend([px * unit, py * unit])
-            canvas.create_polygon(scaled_points, fill="green", outline="darkgreen")
-
-        # Update the window Title to show progress
-        root.title(f"Coverage Simulation - {c} Lilypads dropped")
-
-        root.update()
-        time.sleep(delay_time / 1000)
-
-    print(f"Pond fully covered in {c} lilypads!")
-    root.mainloop() # Keeps the window open after it finishes
-
 def main():
     Pond.cluster = Cluster
 
-    # Use a small pond (Area n=100) so it doesn't take all day to animate!
-    pond_side = 10
-    print((CircleLilypad is CircleLilypad))
-    # my_pond = Pond(pond_side, CircleLilypad)
-    my_pond = CoveragePond(pond_side, CircleLilypad)
-
-    run_coverage_with_gui(my_pond)
-
-
-    # run_approximation(10, 10, 5, 5, 100, CircleLilypad)
-
-    # pond = Pond(50, TriangleLilypad)
-    pond = Pond(20, CircleLilypad)
-    run_with_gui(pond, 100)
-
-
+    for pond_type in [Pond, CoveragePond]:
+        print(f"Running for pond type: {pond_type.__name__}")
+        pond = pond_type(10, CircleLilypad)
+        run_with_gui(pond, 5)
 
 if __name__ == "__main__":
     main()

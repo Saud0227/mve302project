@@ -144,3 +144,59 @@ class Pond:
             self.add_lilypad()
             c += 1
         return self.did_last_lilypad_connect_edges(), c
+
+
+    def setup_coverage_grid(self, points_per_unit: int = 10):
+        """
+        Sets up the dense mesh grid to approximate full coverage.
+        """
+        self.resolution = points_per_unit
+        self.grid_size = int(self.side_length * self.resolution)
+        
+        # 2D array of True (uncovered). When a point is covered, it becomes False.
+        self.uncovered_grid = np.ones((self.grid_size, self.grid_size), dtype=bool)
+        
+        # Keep an integer counter so we don't have to scan the whole array to check if we are done
+        self.uncovered_count = self.grid_size * self.grid_size
+        
+        # Pre-calculate the exact X and Y geometric coordinates for every point in the grid
+        x_coords = np.linspace(0, self.side_length, self.grid_size)
+        y_coords = np.linspace(0, self.side_length, self.grid_size)
+        self.grid_x, self.grid_y = np.meshgrid(x_coords, y_coords)
+
+   def update_coverage_circle(self, lilypad):
+        """
+        Updates the boolean grid when a circular lilypad is dropped.
+        """
+        cx, cy = lilypad.get_coords()
+        r = lilypad.radius
+        
+        # Find the integer matrix indices that map to the physical square around the circle
+        min_x_idx = max(0, int((cx - r) * self.resolution))
+        max_x_idx = min(self.grid_size, int((cx + r) * self.resolution) + 1)
+        min_y_idx = max(0, int((cy - r) * self.resolution))
+        max_y_idx = min(self.grid_size, int((cy + r) * self.resolution) + 1)
+        
+        # Slice the sub-grids (this avoids checking the whole pond)
+        sub_x = self.grid_x[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
+        sub_y = self.grid_y[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
+        
+        # Slice the corresponding part of our True/False tracking board
+        # Note: Because this is a NumPy slice, modifying sub_uncovered modifies the main uncovered_grid
+        sub_uncovered = self.uncovered_grid[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
+        
+        # Calculate Distances and Create Mask
+        dist_sq = (sub_x - cx)**2 + (sub_y - cy)**2
+        covered_mask = dist_sq <= r**2
+        
+        # Count newly covered points & Update
+        # We bitwise AND the mask with the sub_grid to find points that were True AND are now covered
+        newly_covered = sub_uncovered & covered_mask
+        self.uncovered_count -= np.sum(newly_covered)
+        
+        # Set those specific covered points to False
+        sub_uncovered[covered_mask] = False 
+
+    def is_fully_covered(self) -> bool:
+        """Returns True when 100% of the grid points have been covered."""
+        return self.uncovered_count <= 0

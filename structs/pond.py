@@ -1,9 +1,11 @@
 import math as m
 import random
 from typing import Dict, Tuple
-
-from structs.lilypad import Cluster
 import numpy as np
+
+from structs.lilypad import Cluster, CircleLilypad, TriangleLilypad
+
+type Lilypad = CircleLilypad | TriangleLilypad
 
 class Pond:
 
@@ -11,12 +13,12 @@ class Pond:
     color_list = ["green", "blue", "purple", "orange", "yellow", "cyan", "magenta", "red"]
 
     @classmethod
-    def quick_run(cls, side: float, lilypad_class, timeout = 1000000):
+    def quick_run(cls, side: float, lilypad_class: Lilypad, timeout=1000000):
         pond = cls(side, lilypad_class)
         return pond.run(timeout)
 
     @classmethod
-    def new_from_area(cls, area: int, lilypad_class, test_points_per_cell: int = 0):
+    def new_from_area(cls, area: int, lilypad_class: Lilypad, test_points_per_cell: int = 0):
         side_l = area**0.5
         cls(side_l, lilypad_class, test_points_per_cell)
 
@@ -33,8 +35,7 @@ class Pond:
         for color_i, cluster in enumerate(self.all_clusters):
             cluster.set_color(self.color_list[color_i % len(self.color_list)])
 
-
-    def __init__(self, side: float, lilypad_class, test_points_per_cell: int = 0):
+    def __init__(self, side: float, lilypad_class: Lilypad):
         self.side_length = side
         self.grid: Dict[int, Dict[int, list]] = {}
         self.lilypad_class = lilypad_class
@@ -44,9 +45,8 @@ class Pond:
         self.save_coords = False
 
     def add_lilypad(self):
-        coords = self.get_coords()
-        lilypad = self.lilypad_class(*coords)
-        x, y = lilypad.get_coords()
+        x, y = self.get_coords()
+        lilypad = self.lilypad_class(x, y)
 
         # check if the lilypad is touching any other lilypads in the same cell or adjacent cells
         clusters_touched = set()
@@ -58,9 +58,6 @@ class Pond:
             if lilypad.is_touching(other):
                 # print("Touching")
                 clusters_touched.add(target_cluster)
-            else:
-                # print("Not touching")
-                pass
         if len(clusters_touched) == 0:
             # if the lilypad isn't touching any other lilypads, create a new cluster for it
             lilypad.cluster = self.cluster()
@@ -82,9 +79,9 @@ class Pond:
         self.add_to_cell(lilypad)
         self.last_lilypad = lilypad
 
-        return coords
+        return x, y
 
-    def add_to_cell(self, lilypad: object):
+    def add_to_cell(self, lilypad: Lilypad):
         x, y = lilypad.get_coords()
         t_x, t_y = m.floor(x), m.floor(y)
         self._add_to_cell(lilypad, t_x, t_y)
@@ -96,25 +93,25 @@ class Pond:
             self.grid[x][y] = []
         self.grid[x][y].append(lilypad)
 
-    def _get_cell(self, x:int, y:int) -> list:
+    def _get_cell(self, x: int, y: int) -> list:
         return self.grid.get(x, {}).get(y, [])
 
-    def _get_cell_w_adjacent(self, t_x:int, t_y:int) -> list:
+    def _get_cell_w_adjacent(self, t_x: int, t_y: int) -> list:
         out = []
-        for x in range(t_x-2, t_x+3):
+        for x in range(t_x - 2, t_x + 3):
             # NOTE: We don't care about out of bounds here because _get_cell will just return an empty list
-            for y in range(t_y-2, t_y+3):
+            for y in range(t_y - 2, t_y + 3):
                 out += self._get_cell(x, y)
         return out
 
-    def get_cell_from_coords(self, x:float, y:float) -> list:
-        if not 0<x<self.side_length or not 0<y<self.side_length:
+    def get_cell_from_coords(self, x: float, y: float) -> list:
+        if not 0 < x < self.side_length or not 0 < y < self.side_length:
             raise ValueError("Coords out of bounds")
         cell_x, cell_y = m.floor(x), m.floor(y)
         return self._get_cell(cell_x, cell_y)
 
-    def get_cell_with_adjacent(self, x:float, y:float) -> list:
-        if not 0<x<self.side_length or not 0<y<self.side_length:
+    def get_cell_with_adjacent(self, x: float, y: float) -> list:
+        if not 0 < x < self.side_length or not 0 < y < self.side_length:
             raise ValueError("Coords out of bounds")
         cell_x, cell_y = m.floor(x), m.floor(y)
         return self._get_cell_w_adjacent(cell_x, cell_y)
@@ -130,73 +127,78 @@ class Pond:
     def generate_random_coords(self) -> Tuple[float, float]:
         return random.uniform(0, self.side_length), random.uniform(0, self.side_length)
 
-    def did_last_lilypad_connect_edges(self) -> bool:
+    def is_complete(self) -> bool:
         if self.last_lilypad is None:
             return False
         cluster = self.last_lilypad.cluster.get_top()
         return cluster.left_connected and cluster.right_connected
 
-    def run(self, timeout = 1000000) -> Tuple[bool, int]:
+    def run(self, timeout: int = 1000000) -> Tuple[bool, int]:
         if self.cluster is None:
             raise ValueError("Pond must have a cluster class to run")
         c = 0
-        while not self.did_last_lilypad_connect_edges() and c < timeout:
+        while not self.is_complete() and c < timeout:
             self.add_lilypad()
             c += 1
-        return self.did_last_lilypad_connect_edges(), c
+        return self.is_complete(), c
 
 
-    def setup_coverage_grid(self, points_per_unit: int = 10):
-        """
-        Sets up the dense mesh grid to approximate full coverage.
-        """
+class CoveragePond(Pond):
+
+    def __init__(self, side: float, lilypad_class: CircleLilypad, points_per_unit: int = 10):
+        if lilypad_class is not CircleLilypad:
+            raise NotImplementedError("CoveragePond currently only supports CircleLilypad")
+        super().__init__(side, lilypad_class)
+
         self.resolution = points_per_unit
         self.grid_size = int(self.side_length * self.resolution)
-        
+
         # 2D array of True (uncovered). When a point is covered, it becomes False.
         self.uncovered_grid = np.ones((self.grid_size, self.grid_size), dtype=bool)
-        
+
         # Keep an integer counter so we don't have to scan the whole array to check if we are done
         self.uncovered_count = self.grid_size * self.grid_size
-        
+
         # Pre-calculate the exact X and Y geometric coordinates for every point in the grid
         x_coords = np.linspace(0, self.side_length, self.grid_size)
         y_coords = np.linspace(0, self.side_length, self.grid_size)
         self.grid_x, self.grid_y = np.meshgrid(x_coords, y_coords)
 
-   def update_coverage_circle(self, lilypad):
+    def add_lilypad(self):
         """
         Updates the boolean grid when a circular lilypad is dropped.
         """
-        cx, cy = lilypad.get_coords()
+        x, y = self.get_coords()
+        lilypad = self.lilypad_class(x, y)
         r = lilypad.radius
-        
+        self.last_lilypad = lilypad
+
         # Find the integer matrix indices that map to the physical square around the circle
-        min_x_idx = max(0, int((cx - r) * self.resolution))
-        max_x_idx = min(self.grid_size, int((cx + r) * self.resolution) + 1)
-        min_y_idx = max(0, int((cy - r) * self.resolution))
-        max_y_idx = min(self.grid_size, int((cy + r) * self.resolution) + 1)
-        
+        min_x_idx = max(0, int((x - r) * self.resolution))
+        max_x_idx = min(self.grid_size, int((x + r) * self.resolution) + 1)
+        min_y_idx = max(0, int((y - r) * self.resolution))
+        max_y_idx = min(self.grid_size, int((y + r) * self.resolution) + 1)
+
         # Slice the sub-grids (this avoids checking the whole pond)
         sub_x = self.grid_x[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
         sub_y = self.grid_y[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
-        
+
         # Slice the corresponding part of our True/False tracking board
         # Note: Because this is a NumPy slice, modifying sub_uncovered modifies the main uncovered_grid
         sub_uncovered = self.uncovered_grid[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
-        
+
         # Calculate Distances and Create Mask
-        dist_sq = (sub_x - cx)**2 + (sub_y - cy)**2
-        covered_mask = dist_sq <= r**2
-        
+        dist_sq = (sub_x - x) ** 2 + (sub_y - y) ** 2
+        covered_mask = dist_sq <= r ** 2
+
         # Count newly covered points & Update
         # We bitwise AND the mask with the sub_grid to find points that were True AND are now covered
         newly_covered = sub_uncovered & covered_mask
         self.uncovered_count -= np.sum(newly_covered)
-        
-        # Set those specific covered points to False
-        sub_uncovered[covered_mask] = False 
 
-    def is_fully_covered(self) -> bool:
-        """Returns True when 100% of the grid points have been covered."""
+        # Set those specific covered points to False
+        sub_uncovered[covered_mask] = False
+
+    def is_complete(self) -> bool:
+        """Overrides the original is_complete to use coverage instead of edge connection."""
         return self.uncovered_count <= 0

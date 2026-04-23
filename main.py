@@ -1,7 +1,7 @@
 import time
 import matplotlib.pyplot as plt
 from structs.lilypad import CircleLilypad, TriangleLilypad, Cluster
-from structs.pond import Pond
+from structs.pond import Pond, CoveragePond
 import tkinter as tk
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -51,7 +51,7 @@ def run_with_gui(pond, delay_time = 1000):
     unit = 500 / pond.side_length
     canvas.pack()
 
-    while pond.did_last_lilypad_connect_edges():
+    while pond.is_complete():
         pond.add_lilypad()
         gui_draw_pond(canvas, unit, pond)
         root.update()
@@ -120,15 +120,7 @@ def run_aproximation(start, step, base_steps, predict_steps, size):
         quadratic_error = abs(data_item["quadratic"] - data_item["average"])
         print(f"Pond size: {pond_size}, actual average: {data_item['average']}, linear prediction: {data_item['linear']} (error: {linear_error}), quadratic prediction: {data_item['quadratic']} (error: {quadratic_error})")
 
-
-
-"""
-if __name__ == "__main__":
-    Pond.cluster = Cluster
-    run_aproximation(start=10, step=10, base_steps=5, predict_steps=5, size=100)
-"""
-
-def run_coverage_with_gui(pond, points_per_unit=10, delay_time=10):
+def run_coverage_with_gui(pond, delay_time=10):
     root = tk.Tk()
     root.title("Pond Coverage Simulation")
 
@@ -136,14 +128,10 @@ def run_coverage_with_gui(pond, points_per_unit=10, delay_time=10):
     unit = 500 / pond.side_length
     canvas.pack()
 
-    # Initialize the coverage tracking grid
-    pond.setup_coverage_grid(points_per_unit)
-
     c = 0
     # Loop until the NumPy grid says 100% of points are covered
-    while not pond.is_fully_covered():
+    while not pond.is_complete():
         pond.add_lilypad()
-        pond.update_coverage_circle(pond.last_lilypad)
         c += 1
         
         # We can optimize this by only drawing the NEW lilypad instead of redrawing all of them
@@ -174,8 +162,9 @@ if __name__ == "__main__":
     
     # Use a small pond (Area n=100) so it doesn't take all day to animate!
     pond_side = 10
-    my_pond = Pond(pond_side, CircleLilypad)
-    
+    print((CircleLilypad is CircleLilypad))
+    # my_pond = Pond(pond_side, CircleLilypad)
+    my_pond = CoveragePond(pond_side, CircleLilypad)
 
-    run_coverage_with_gui(my_pond, points_per_unit=10, delay_time=10)
+    run_coverage_with_gui(my_pond)
     

@@ -3,9 +3,9 @@ import random
 from typing import Dict, Tuple
 import numpy as np
 
-from structs.lilypad import Cluster, CircleLilypad, TriangleLilypad
+from structs.lilypad import Cluster, CircleLilypad, TriangleLilypad, AnyLilypad
 
-type Lilypad = CircleLilypad | TriangleLilypad
+type AnyPond = Pond | CoveragePond
 
 class Pond:
 
@@ -13,12 +13,12 @@ class Pond:
     color_list = ["green", "blue", "purple", "orange", "yellow", "cyan", "magenta", "red"]
 
     @classmethod
-    def quick_run(cls, side: float, lilypad_class: Lilypad, timeout=1000000):
+    def quick_run(cls, side: float, lilypad_class: AnyLilypad, timeout=1000000):
         pond = cls(side, lilypad_class)
         return pond.run(timeout)
 
     @classmethod
-    def new_from_area(cls, area: int, lilypad_class: Lilypad, test_points_per_cell: int = 0):
+    def new_from_area(cls, area: int, lilypad_class: AnyLilypad, test_points_per_cell: int = 0):
         side_l = area**0.5
         cls(side_l, lilypad_class, test_points_per_cell)
 
@@ -35,7 +35,7 @@ class Pond:
         for color_i, cluster in enumerate(self.all_clusters):
             cluster.set_color(self.color_list[color_i % len(self.color_list)])
 
-    def __init__(self, side: float, lilypad_class: Lilypad):
+    def __init__(self, side: float, lilypad_class: AnyLilypad):
         self.side_length = side
         self.grid: Dict[int, Dict[int, list]] = {}
         self.lilypad_class = lilypad_class
@@ -81,12 +81,12 @@ class Pond:
 
         return x, y
 
-    def add_to_cell(self, lilypad: Lilypad):
+    def add_to_cell(self, lilypad: AnyLilypad):
         x, y = lilypad.get_coords()
         t_x, t_y = m.floor(x), m.floor(y)
         self._add_to_cell(lilypad, t_x, t_y)
 
-    def _add_to_cell(self, lilypad: object, x, y):
+    def _add_to_cell(self, lilypad: AnyLilypad, x, y):
         if x not in self.grid:
             self.grid[x] = {}
         if y not in self.grid[x]:

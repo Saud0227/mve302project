@@ -122,7 +122,60 @@ def run_aproximation(start, step, base_steps, predict_steps, size):
 
 
 
-
+"""
 if __name__ == "__main__":
     Pond.cluster = Cluster
     run_aproximation(start=10, step=10, base_steps=5, predict_steps=5, size=100)
+"""
+
+def run_coverage_with_gui(pond, points_per_unit=10, delay_time=10):
+    root = tk.Tk()
+    root.title("Pond Coverage Simulation")
+
+    canvas = tk.Canvas(root, width=500, height=500, bg="white")
+    unit = 500 / pond.side_length
+    canvas.pack()
+
+    # Initialize the coverage tracking grid
+    pond.setup_coverage_grid(points_per_unit)
+
+    c = 0
+    # Loop until the NumPy grid says 100% of points are covered
+    while not pond.is_fully_covered():
+        pond.add_lilypad()
+        pond.update_coverage_circle(pond.last_lilypad)
+        c += 1
+        
+        # We can optimize this by only drawing the NEW lilypad instead of redrawing all of them
+        lilypad = pond.last_lilypad
+        x, y = lilypad.get_coords()
+        
+        # Draw the single new shape
+        if isinstance(lilypad, CircleLilypad):
+            canvas.create_oval(unit*(x-1), unit*(y-1), unit*(x+1), unit*(y+1), fill="green", outline="darkgreen")
+        elif isinstance(lilypad, TriangleLilypad):
+            scaled_points = []
+            for px, py in lilypad.p:
+                scaled_points.extend([px * unit, py * unit])
+            canvas.create_polygon(scaled_points, fill="green", outline="darkgreen")
+
+        # Update the window Title to show progress
+        root.title(f"Coverage Simulation - {c} Lilypads dropped")
+        
+        root.update()
+        time.sleep(delay_time / 1000)
+
+    print(f"Pond fully covered in {c} lilypads!")
+    root.mainloop() # Keeps the window open after it finishes
+
+
+if __name__ == "__main__":
+    Pond.cluster = Cluster
+    
+    # Use a small pond (Area n=100) so it doesn't take all day to animate!
+    pond_side = 10
+    my_pond = Pond(pond_side, CircleLilypad)
+    
+
+    run_coverage_with_gui(my_pond, points_per_unit=10, delay_time=10)
+    

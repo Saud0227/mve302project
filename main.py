@@ -1,61 +1,8 @@
-import time
-import matplotlib.pyplot as plt
 from structs.lilypad import CircleLilypad, TriangleLilypad, Cluster
+from structs.gui import generate_plot, run_with_gui
 from structs.pond import Pond, CoveragePond
-import tkinter as tk
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor, as_completed
-
-
-def generate_plot(pond: Pond, c: int = 0):
-    pond.color_clusters()
-    for _, x_row in pond.grid.items():
-        for _, cell in x_row.items():
-            for lilypad in cell:
-                # plt.gca().add_patch(plt.Circle((lilypad.x, lilypad.y), 1, color=lilypad.color))
-                if isinstance(lilypad, CircleLilypad):
-                    plt.gca().add_patch(plt.Circle((lilypad.x, lilypad.y), 1, color=lilypad.color))
-                elif isinstance(lilypad, TriangleLilypad):
-                    # Använd hörnkoordinaterna i self.p
-                    plt.gca().add_patch(plt.Polygon(lilypad.p, color=lilypad.color))
-    # set axis limits to the size of the pond
-    plt.xlim(0, pond.side_length)
-    plt.ylim(0, pond.side_length)
-    plt.gca().set_aspect("equal", adjustable="box")
-    plt.title(f"Connected edges in {c} lilypads")
-    plt.show()
-
-def gui_draw_pond(canvas, unit, pond):
-    # clear the canvas
-    canvas.delete("all")
-    pond.color_clusters()
-
-    for _, x_row in pond.grid.items():
-        for _, cell in x_row.items():
-            for lilypad in cell:
-                if isinstance(lilypad, CircleLilypad):
-                    x, y = lilypad.get_coords()
-                    canvas.create_oval(unit*(x-1), unit*(y-1), unit*(x+1), unit*(y+1), fill=lilypad.color)
-                elif isinstance(lilypad, TriangleLilypad):
-                    # Rita triangel med koordinaterna från lilypad.p
-                    scaled_points = []
-                    for px, py in lilypad.p:
-                        scaled_points.extend([px * unit, py * unit])
-                    canvas.create_polygon(scaled_points, fill=lilypad.color)
-
-def run_with_gui(pond, delay_time = 1000):
-    root = tk.Tk()
-    root.title("Pond Simulation")
-
-    canvas = tk.Canvas(root, width=500, height=500)
-    unit = 500 / pond.side_length
-    canvas.pack()
-
-    while pond.is_complete():
-        pond.add_lilypad()
-        gui_draw_pond(canvas, unit, pond)
-        root.update()
-        time.sleep(delay_time/1000)
 
 def step_run(pond, length=0):
     if length==0:
@@ -95,7 +42,7 @@ def run_multiple(data_set, size, multi_count=10, pad_class=CircleLilypad, timemo
         data_set[pond_size]["average"] = sum/size
 
 
-def run_aproximation(start, step, base_steps, predict_steps, size):
+def run_approximation(start, step, base_steps, predict_steps, size, lillypad_class=CircleLilypad):
     base_set = {i:{"data":[]} for i in range(start, start+base_steps*step, step)}
     run_multiple(base_set, size)
     print("Base set generated, now predicting values for larger ponds...")
@@ -133,11 +80,11 @@ def run_coverage_with_gui(pond, delay_time=10):
     while not pond.is_complete():
         pond.add_lilypad()
         c += 1
-        
+
         # We can optimize this by only drawing the NEW lilypad instead of redrawing all of them
         lilypad = pond.last_lilypad
         x, y = lilypad.get_coords()
-        
+
         # Draw the single new shape
         if isinstance(lilypad, CircleLilypad):
             canvas.create_oval(unit*(x-1), unit*(y-1), unit*(x+1), unit*(y+1), fill="green", outline="darkgreen")
@@ -149,17 +96,16 @@ def run_coverage_with_gui(pond, delay_time=10):
 
         # Update the window Title to show progress
         root.title(f"Coverage Simulation - {c} Lilypads dropped")
-        
+
         root.update()
         time.sleep(delay_time / 1000)
 
     print(f"Pond fully covered in {c} lilypads!")
     root.mainloop() # Keeps the window open after it finishes
 
-
-if __name__ == "__main__":
+def main():
     Pond.cluster = Cluster
-    
+
     # Use a small pond (Area n=100) so it doesn't take all day to animate!
     pond_side = 10
     print((CircleLilypad is CircleLilypad))
@@ -167,4 +113,15 @@ if __name__ == "__main__":
     my_pond = CoveragePond(pond_side, CircleLilypad)
 
     run_coverage_with_gui(my_pond)
-    
+
+
+    # run_approximation(10, 10, 5, 5, 100, CircleLilypad)
+
+    # pond = Pond(50, TriangleLilypad)
+    pond = Pond(20, CircleLilypad)
+    run_with_gui(pond, 100)
+
+
+
+if __name__ == "__main__":
+    main()

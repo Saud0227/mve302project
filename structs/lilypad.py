@@ -9,7 +9,7 @@ class Lilypad:
         self.left_connected = None
         self.right_connected = None
         self.cluster = None
-        self.part_of_path = False
+        self.color = ""
 
     def _check_edge_connections(self, edge_x: float ) -> None:
         raise NotImplementedError("This method should be overridden by subclasses")
@@ -85,6 +85,19 @@ class Cluster:
         self.child_clusters = []
         self.left_connected = False
         self.right_connected = False
+
+    def set_color(self, color: str) -> None:
+        for lilypad in self.get_all_lilypads():
+            lilypad.color = color
+
+    def get_all_lilypads(self) -> list:
+        return self.get_top()._get_all_lilypads()
+
+    def _get_all_lilypads(self) -> list:
+        lilypads = self.lilypads.copy()
+        for cluster in self.child_clusters:
+            lilypads.extend(cluster._get_all_lilypads())
+        return lilypads
 
     def get_top(self) -> Cluster:
         if self.parent_cluster is not None:

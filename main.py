@@ -1,6 +1,6 @@
 import time
 import matplotlib.pyplot as plt
-from structs.lilypad import CircleLilypad, Cluster
+from structs.lilypad import CircleLilypad, TriangleLilypad, Cluster
 from structs.pond import Pond
 import tkinter as tk
 import numpy as np
@@ -12,7 +12,12 @@ def generate_plot(pond: Pond, c: int = 0):
     for _, x_row in pond.grid.items():
         for _, cell in x_row.items():
             for lilypad in cell:
-                plt.gca().add_patch(plt.Circle((lilypad.x, lilypad.y), 1, color=lilypad.color))
+                # plt.gca().add_patch(plt.Circle((lilypad.x, lilypad.y), 1, color=lilypad.color))
+                if isinstance(lilypad, CircleLilypad):
+                    plt.gca().add_patch(plt.Circle((lilypad.x, lilypad.y), 1, color=lilypad.color))
+                elif isinstance(lilypad, TriangleLilypad):
+                    # Använd hörnkoordinaterna i self.p
+                    plt.gca().add_patch(plt.Polygon(lilypad.p, color=lilypad.color))
     # set axis limits to the size of the pond
     plt.xlim(0, pond.side_length)
     plt.ylim(0, pond.side_length)
@@ -28,8 +33,15 @@ def gui_draw_pond(canvas, unit, pond):
     for _, x_row in pond.grid.items():
         for _, cell in x_row.items():
             for lilypad in cell:
-                x, y = lilypad.get_coords()
-                canvas.create_oval(x * unit - unit, y * unit - unit, x * unit + unit, y * unit + unit, fill=lilypad.color)
+                if isinstance(lilypad, CircleLilypad):
+                    x, y = lilypad.get_coords()
+                    canvas.create_oval(unit*(x-1), unit*(y-1), unit*(x+1), unit*(y+1), fill=lilypad.color)
+                elif isinstance(lilypad, TriangleLilypad):
+                    # Rita triangel med koordinaterna från lilypad.p
+                    scaled_points = []
+                    for px, py in lilypad.p:
+                        scaled_points.extend([px * unit, py * unit])
+                    canvas.create_polygon(scaled_points, fill=lilypad.color)
 
 def run_with_gui(pond, delay_time = 1000):
     root = tk.Tk()
@@ -114,17 +126,3 @@ def run_aproximation(start, step, base_steps, predict_steps, size):
 if __name__ == "__main__":
     Pond.cluster = Cluster
     run_aproximation(start=10, step=10, base_steps=5, predict_steps=5, size=100)
-
-
-    # Pond.cluster = Cluster
-    # side_l = 50
-    # pond = Pond(side_l, CircleLilypad)
-    # run_with_gui(pond)
-    # set time
-    # start_t = time.time()
-    # t, c = standard_run(pond)
-    # delta_t = time.time() - start_t
-
-    # print(f'Connected edges: {'Yes' if t else 'No'}, lilypads generated: {c}, time taken: {delta_t:.2f} seconds')
-
-    # generate_plot(pond, c)

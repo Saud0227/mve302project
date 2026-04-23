@@ -133,7 +133,8 @@ class Pond:
     def did_last_lilypad_connect_edges(self) -> bool:
         if self.last_lilypad is None:
             return False
-        return self.last_lilypad.cluster.left_connected and self.last_lilypad.cluster.right_connected
+        cluster = self.last_lilypad.cluster.get_top()
+        return cluster.left_connected and cluster.right_connected
 
     def run(self, timeout = 1000000) -> Tuple[bool, int]:
         if self.cluster is None:

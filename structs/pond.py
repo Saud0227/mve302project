@@ -3,7 +3,7 @@ import random
 from typing import Dict, Tuple
 
 from structs.lilypad import Cluster
-
+import numpy as np
 
 class Pond:
 

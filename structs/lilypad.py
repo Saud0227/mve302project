@@ -86,7 +86,7 @@ class TriangleLilypad(Lilypad):
 class Cluster:
 
     @classmethod
-    def merge_clusters(cls, *clusters) -> Cluster:
+    def merge_clusters(cls, *clusters) -> 'Cluster':
         merged_cluster = cls()
         left_connected = False
         right_connected = False
@@ -121,7 +121,7 @@ class Cluster:
             lilypads.extend(cluster._get_all_lilypads())
         return lilypads
 
-    def get_top(self) -> Cluster:
+    def get_top(self) -> 'Cluster':
         if self.parent_cluster is not None:
             return self.parent_cluster.get_top()
         return self

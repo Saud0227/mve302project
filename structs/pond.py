@@ -142,63 +142,87 @@ class Pond:
             c += 1
         return self.is_complete(), c
 
-
 class CoveragePond(Pond):
 
-    def __init__(self, side: float, lilypad_class: CircleLilypad, points_per_unit: int = 10):
-        if lilypad_class is not CircleLilypad:
-            raise NotImplementedError("CoveragePond currently only supports CircleLilypad")
+    def __init__(self, side: float, lilypad_class: AnyLilypad, points_per_unit: int = 10):
+        # Tillåt nu både CircleLilypad och TriangleLilypad
+        if lilypad_class not in [CircleLilypad, TriangleLilypad]:
+            raise NotImplementedError("CoveragePond stöder endast CircleLilypad eller TriangleLilypad")
         super().__init__(side, lilypad_class)
 
         self.resolution = points_per_unit
         self.grid_size = int(self.side_length * self.resolution)
 
-        # 2D array of True (uncovered). When a point is covered, it becomes False.
+        # 2D array av True (uncovered). När en punkt täcks blir den False.
         self.uncovered_grid = np.ones((self.grid_size, self.grid_size), dtype=bool)
-
-        # Keep an integer counter so we don't have to scan the whole array to check if we are done
         self.uncovered_count = self.grid_size * self.grid_size
 
-        # Pre-calculate the exact X and Y geometric coordinates for every point in the grid
+        # För-kalkylera geometriska koordinater
         x_coords = np.linspace(0, self.side_length, self.grid_size)
         y_coords = np.linspace(0, self.side_length, self.grid_size)
         self.grid_x, self.grid_y = np.meshgrid(x_coords, y_coords)
 
     def add_lilypad(self):
         """
-        Updates the boolean grid when a circular lilypad is dropped.
+        Uppdaterar boolean-rutnätet när ett liljeblad (cirkel eller triangel) släpps.
         """
         x, y = self.get_coords()
         lilypad = self.lilypad_class(x, y)
-        r = lilypad.radius
         self.last_lilypad = lilypad
 
-        # Find the integer matrix indices that map to the physical square around the circle
-        min_x_idx = max(0, int((x - r) * self.resolution))
-        max_x_idx = min(self.grid_size, int((x + r) * self.resolution) + 1)
-        min_y_idx = max(0, int((y - r) * self.resolution))
-        max_y_idx = min(self.grid_size, int((y + r) * self.resolution) + 1)
+        # 1. Bestäm bounding box (omfång) baserat på lilypad-typ
+        if isinstance(lilypad, CircleLilypad):
+            r = lilypad.radius
+            min_x, max_x = x - r, x + r
+            min_y, max_y = y - r, y + r
+        elif isinstance(lilypad, TriangleLilypad):
+            # Hämta x- och y-koordinater från triangelns hörn (.p)
+            pts = np.array(lilypad.p)
+            min_x, max_x = np.min(pts[:, 0]), np.max(pts[:, 0])
+            min_y, max_y = np.min(pts[:, 1]), np.max(pts[:, 1])
+        else:
+            raise TypeError("Okänd lilypad-typ")
 
-        # Slice the sub-grids (this avoids checking the whole pond)
+        # Översätt till matrisindex (clampa mot dammens gränser)
+        min_x_idx = max(0, int(min_x * self.resolution))
+        max_x_idx = min(self.grid_size, int(max_x * self.resolution) + 1)
+        min_y_idx = max(0, int(min_y * self.resolution))
+        max_y_idx = min(self.grid_size, int(max_y * self.resolution) + 1)
+
+        # Skapa sub-grids för det drabbade området
         sub_x = self.grid_x[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
         sub_y = self.grid_y[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
-
-        # Slice the corresponding part of our True/False tracking board
-        # Note: Because this is a NumPy slice, modifying sub_uncovered modifies the main uncovered_grid
         sub_uncovered = self.uncovered_grid[min_y_idx:max_y_idx, min_x_idx:max_x_idx]
 
-        # Calculate Distances and Create Mask
-        dist_sq = (sub_x - x) ** 2 + (sub_y - y) ** 2
-        covered_mask = dist_sq <= r ** 2
+        # 2. Skapa mask för övertäckning (Beror på form)
+        if isinstance(lilypad, CircleLilypad):
+            dist_sq = (sub_x - x) ** 2 + (sub_y - y) ** 2
+            covered_mask = dist_sq <= lilypad.radius ** 2
+            
+        elif isinstance(lilypad, TriangleLilypad):
+            # Hämta de tre hörnpunkterna
+            p0, p1, p2 = lilypad.p
+            
+            # Algoritm för punkt-i-triangel via 2D-korsprodukt (Edge function)
+            # En punkt är inuti om den ligger på samma "sida" om alla tre linjesegment.
+            def sign(p1_x, p1_y, p2_x, p2_y, p3_x, p3_y):
+                return (p1_x - p3_x) * (p2_y - p3_y) - (p2_x - p3_x) * (p1_y - p3_y)
 
-        # Count newly covered points & Update
-        # We bitwise AND the mask with the sub_grid to find points that were True AND are now covered
+            # Kör vektoralgebran direkt på NumPy-matriserna för snabb beräkning
+            d1 = sign(sub_x, sub_y, p0[0], p0[1], p1[0], p1[1])
+            d2 = sign(sub_x, sub_y, p1[0], p1[1], p2[0], p2[1])
+            d3 = sign(sub_x, sub_y, p2[0], p2[1], p0[0], p0[1])
+
+            # Kolla om tecknen är likadana (antingen alla >= 0 eller alla <= 0)
+            has_neg = (d1 < 0) | (d2 < 0) | (d3 < 0)
+            has_pos = (d1 > 0) | (d2 > 0) | (d3 > 0)
+            
+            covered_mask = ~(has_neg & has_pos)
+
+        # 3. Räkna nya täckta punkter & Uppdatera matrisen
         newly_covered = sub_uncovered & covered_mask
         self.uncovered_count -= np.sum(newly_covered)
-
-        # Set those specific covered points to False
         sub_uncovered[covered_mask] = False
 
     def is_complete(self) -> bool:
-        """Overrides the original is_complete to use coverage instead of edge connection."""
         return self.uncovered_count <= 0

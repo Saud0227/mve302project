@@ -1,7 +1,8 @@
 import math as m
 import numpy as np
-from typing import Tuple
+from typing import Tuple, List
 
+type AnyLilypad = CircleLilypad | TriangleLilypad
 
 class Lilypad:
     def __init__(self, x: int, y: int):
@@ -44,7 +45,7 @@ class CircleLilypad(Lilypad):
         super().__init__(x, y)
         # radius is 1, so area is pi
 
-    def is_touching(self, other) -> bool:
+    def is_touching(self, other: CircleLilypad) -> bool:
         if isinstance(other, CircleLilypad):
             return (self.x - other.x)**2 + (self.y - other.y)**2 <= (self.radius*2)**2
         else:
@@ -102,7 +103,7 @@ class Cluster:
         return merged_cluster
 
     def __init__(self):
-        self.lilypads = []
+        self.lilypads: List[AnyLilypad] = []
         self.parent_cluster = None
         self.child_clusters = []
         self.left_connected = False
@@ -126,7 +127,7 @@ class Cluster:
             return self.parent_cluster.get_top()
         return self
 
-    def add_lilypad(self, lilypad: Lilypad) -> None:
+    def add_lilypad(self, lilypad: AnyLilypad) -> None:
         self.lilypads.append(lilypad)
 
 

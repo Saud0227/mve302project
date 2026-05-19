@@ -6,11 +6,9 @@ from .gui import generate_plot
 
 
 def run_multiple(data_set, size, multi_count=10, lilypad_class: AnyLilypad = CircleLilypad, pond_type: AnyPond = Pond,
-                 timemout=1000000, progress_call=None):
+                 timemout=1000000):
     for pond_size in data_set:
-        print("Running pond size: ", pond_size)
         sum = 0
-
         with (ThreadPoolExecutor(max_workers=multi_count) as pool):
             futures = {pool.submit(pond_type.quick_run, pond_size, lilypad_class, timemout): i for i in range(size)}
 
@@ -21,8 +19,6 @@ def run_multiple(data_set, size, multi_count=10, lilypad_class: AnyLilypad = Cir
                         f"Failed to connect edges in {pond_size}x{pond_size} pond after {timemout} lilypads")
                 data_set[pond_size]["data"].append(c)
                 sum += c
-                if progress_call is not None:
-                    progress_call()
         data_set[pond_size]["average"] = sum / size
 
 

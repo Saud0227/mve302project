@@ -81,15 +81,16 @@ def run_approximation(start, step, base_steps, predict_steps, size, multi_count=
 def main():
     Pond.cluster = Cluster
 
-    print(f"Running circle lilypads in regular pond...")
-    run_approximation(start=10, step=5, base_steps=5, predict_steps=3, size=100, multi_count=10,
-                      lilypad_class=CircleLilypad, pond_type=Pond)
-    print(f"\nRunning triangle lilypads in regular pond...")
-    run_approximation(start=10, step=5, base_steps=5, predict_steps=3, size=100, multi_count=10,
-                      lilypad_class=TriangleLilypad, pond_type=Pond)
-    print(f"\nRunning circle lilypads in coverage pond...")
-    run_approximation(start=10, step=5, base_steps=5, predict_steps=3, size=100, multi_count=10,
-                      lilypad_class=CircleLilypad, pond_type=CoveragePond)
+    # print(f"Running circle lilypads in regular pond...")
+    # run_approximation(start=10, step=5, base_steps=5, predict_steps=3, size=100, multi_count=10,
+    #                   lilypad_class=CircleLilypad, pond_type=Pond)
+    # print(f"\nRunning triangle lilypads in regular pond...")
+    # run_approximation(start=10, step=5, base_steps=5, predict_steps=3, size=100, multi_count=10,
+    #                   lilypad_class=TriangleLilypad, pond_type=Pond)
+    # print(f"\nRunning circle lilypads in coverage pond...")
+    # run_approximation(start=10, step=5, base_steps=5, predict_steps=3, size=100, multi_count=10,
+    #                   lilypad_class=CircleLilypad, pond_type=CoveragePond)
+    run_approximation(start=10, step=5, base_steps=5, predict_steps=3, size=50, lilypad_class=TriangleLilypad, pond_type=CoveragePond)
 
 
 if __name__ == "__main__":

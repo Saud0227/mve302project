@@ -3,7 +3,8 @@ import time
 from structs.lilypad import CircleLilypad, TriangleLilypad, Cluster, AnyLilypad
 from structs.gui import generate_plot, run_with_gui
 from structs.pond import Pond, CoveragePond, AnyPond
-from structs.file_saving import terminal_save_run
+from structs.file_saving import terminal_save_run, run_range_save
+from structs.run_configs import run_multiple
 
 def main():
     Pond.cluster = Cluster

@@ -46,3 +46,20 @@ def terminal_save_run(pond_type: AnyPond, lilypad_type: AnyLilypad, side_l, batc
 
         file_name = check_file_size(file_name, file_size_max)
         n_completed_runs += 1
+
+def run_range_save(pond_type: AnyPond, lilypad_type: AnyLilypad, side_l: list, batch_size: int, n_times: int, multi_count=10):
+    # make dir based on list[0] and list[-1]
+    dir_name = f"data_s{side_l[0]}_to_s{side_l[-1]}"
+    if os.path.exists(dir_name):
+        dir_index = 1
+        while os.path.exists(f"{dir_name}_{dir_index}"):
+            dir_index += 1
+        dir_name = f"{dir_name}_{dir_index}"
+
+    os.makedirs(dir_name)
+
+    # change dir
+    os.chdir(dir_name)
+
+    for side in side_l:
+        terminal_save_run(pond_type, lilypad_type, side, batch_size, n_times, multi_count)
